@@ -5,190 +5,276 @@ import pandas as pd
 import shap
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-import xgboost as xgb
 from matplotlib.font_manager import FontProperties
+from xgboost import XGBClassifier
+import xgboost as xgb
 
 # 设置中文字体
-font_path = "SIMSUNEXTG.TTF"  
+font_path = "SimHei.ttf"
 font_prop = FontProperties(fname=font_path)
 
-# 确保matplotlib使用指定的字体
+# 确保 matplotlib 使用指定的字体
 plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
-# 加载模型
-try:
-    model = joblib.load('best_model.pkl')
-except Exception as e:
-    st.write(f"Error loading model: {e}")
+# 添加复杂的 CSS 样式，紫色高级风格，修复背景颜色问题
+st.markdown("""
+    <style>
+    .main {
+        background-color: #3E065F;
+        background-image: url('https://www.transparenttextures.com/patterns/bedge-grunge.png');
+        color: #ffffff;
+        font-family: 'Arial', sans-serif;
+    }
+    .title {
+        font-size: 48px;
+        color: #ffffff;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 30px;
+        text-shadow: 3px 3px 10px #2E0854;
+    }
+    .subheader {
+        font-size: 28px;
+        color: #FFD700;
+        margin-bottom: 25px;
+        text-align: center;
+        border-bottom: 2px solid #DDA0DD;
+        padding-bottom: 10px;
+        margin-top: 20px;
+    }
+    .input-label {
+        font-size: 18px;
+        font-weight: bold;
+        color: #DDA0DD;
+        margin-bottom: 10px;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 50px;
+        font-size: 16px;
+        color: #D8BFD8;
+        background-color: #2E0854;
+        padding: 20px;
+        border-top: 1px solid #6A5ACD;
+    }
+    .button {
+        background-color: #8A2BE2;
+        border: none;
+        color: white;
+        padding: 12px 24px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 18px;
+        margin: 20px auto;
+        cursor: pointer;
+        border-radius: 10px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.5);
+        transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    .button:hover {
+        background-color: #6A5ACD;
+        box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.7);
+    }
+    .stSelectbox, .stNumberInput, .stSlider {
+        margin-bottom: 20px;
+    }
+    .stSlider > div {
+        padding: 10px;
+        background: #E6E6FA;
+        border-radius: 10px;
+    }
+    .prediction-result {
+        font-size: 24px;
+        color: #ffffff;
+        margin-top: 30px;
+        padding: 20px;
+        border-radius: 10px;
+        background: #6A5ACD;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    .advice-text {
+        font-size: 20px;
+        line-height: 1.6;
+        color: #ffffff;
+        background: #8A2BE2;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+        margin-top: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# 获取模型输入特征数量及顺序
-model_input_features = [ 'A2', 'A3', 'A5', 'B3', 'B4', 'B5', 'smokeG', 'exerciseG3', '年龄', '工龄', '工时分组', '生活满意度', '抑郁症状级别', '睡眠状况', '疲劳蓄积程度']
-expected_feature_count = len(model_input_features)
+st.markdown("<div class='main'>", unsafe_allow_html=True)
 
-# 定义新的特征选项及名称
-cp_options = {
-    0: '无症状 (0)',
-    1: '轻度职业紧张 (1)',
-    2: '中度职业紧张 (2)',
-    3: '重度职业紧张 (3)'
-}
+# 页面标题
+st.markdown('<div class="title">国潮新茶饮推荐茶饮预测</div>', unsafe_allow_html=True)
 
 # Streamlit 界面设置
-st.title("职业紧张预测")
+st.markdown('<div class="subheader">请填写以下信息以进行推荐茶饮预测：</div>', unsafe_allow_html=True)
 
 # 年龄输入
-age = st.number_input("年龄：", min_value=1, max_value=120, value=50)
+age = st.number_input("您的年龄为：", min_value=1, max_value=120, value=10)
 
-# 工龄输入
-service_years = st.number_input("工龄：", min_value=1, max_value=120, value=50)
+# 性别选择
+sex_options = {1: '男性', 2: '女性'}
+sex = st.selectbox("您的性别为：", options=list(sex_options.keys()), format_func=lambda x: sex_options[x])
 
-# 近一个月平均每天加班时间输入，对应 B3
-overtime_hours = st.number_input("近一个月平均每天加班时间：", min_value=1, max_value=120, value=50)
-
-# A2（性别）选择
-A2_options = {1: '男性', 2: '女性'}
-A2 = st.selectbox(
-    "性别：",
-    options=list(A2_options.keys()),
-    format_func=lambda x: A2_options[x]
-)
-
-# A3（学历）选择
-A3_options = {1: '初中及以下', 2: '高中或中专', 3: '大专或高职', 4: '大学本科', 5: '研究生及以上'}
-A3 = st.selectbox(
-    "学历：",
-    options=list(A3_options.keys()),
-    format_func=lambda x: A3_options[x]
-)
-
-# A5（月收入）选择
-A5_options = {1: '少于 3000 元', 2: '3000 - 4999 元', 3: '5000 - 6999 元', 4: '7000 - 8999 元', 5: '9000 - 10999 元', 6: '11000 元及以上'}
-A5 = st.selectbox(
-    "月收入：",
-    options=list(A5_options.keys()),
-    format_func=lambda x: A5_options[x]
-)
-
-# B4（是否轮班）选择
-B4_options = {1: '否', 2: '是'}
-B4 = st.selectbox(
-    "是否轮班：",
-    options=list(B4_options.keys()),
-    format_func=lambda x: B4_options[x]
-)
+# 产品类型选择
+A_options = {1: '水果茶', 2: '鲜奶茶', 3: '气泡茶', 4: '冷泡茶', 5: '奶盖茶'}
+A = st.selectbox("请选择您最日常喜爱的新茶饮产品类型： ", options=list(A_options.keys()), format_func=lambda x: A_options[x])
 
 # B5（是否需要上夜班）选择
 B5_options = {1: '否', 2: '是'}
-B5 = st.selectbox(
-    "是否需要上夜班：",
-    options=list(B5_options.keys()),
-    format_func=lambda x: B5_options[x]
-)
+B5 = st.selectbox("您的工作是否需要上夜班？", options=list(B5_options.keys()), format_func=lambda x: B5_options[x])
 
-# smoke（是否吸烟）选择
-smoke_options = {1: '是的', 2: '以前吸，但现在不吸了', 3: '从不吸烟'}
-smoke = st.selectbox(
-    "是否吸烟：",
-    options=list(smoke_options.keys()),
-    format_func=lambda x: smoke_options[x]
-)
-
-# 工时分组选择
-working_hours_group_options = {1: '35 到 40 小时', 2: '40 到 48 小时', 3: '48 到 54 小时', 4: '54 到 105 小时'}
-working_hours_group = st.selectbox(
-    "工时分组：",
-    options=list(working_hours_group_options.keys()),
-    format_func=lambda x: working_hours_group_options[x]
-)
-
-# exercise（是否有进行持续至少 30 分钟的中等强度锻炼）选择
-exercise_options = {1: '无', 2: '偶尔，1 - 3 次/月', 3: '有，1~3 次/周', 4: '经常，4~6 次/周', 5: '每天'}
-exercise = st.selectbox(
-    "是否有进行持续至少 30 分钟的中等强度锻炼：",
-    options=list(exercise_options.keys()),
-    format_func=lambda x: exercise_options[x]
-)
+# G1（外出步行或骑自行车情况）选择
+g1_options = {1: '无', 2: '偶尔，1-3 次/月', 3: '有，1~3 次/周', 4: '经常，4~6 次/周', 5: '每天'}
+g1 = st.selectbox("您在外出时，是否有步行或骑自行车持续至少 30 分钟的情况？", options=list(g1_options.keys()), format_func=lambda x: g1_options[x])
 
 # 生活满意度滑块
-life_satisfaction = st.slider("生活满意度（1 - 5）：", min_value=1, max_value=5, value=3)
+life_satisfaction = st.slider("您对将传统茶饮的经典口味与现代国潮文化元素相结合的产品满意度评分为（1 - 5）：", min_value=1, max_value=5, value=3)
 
 # 睡眠状况滑块
-sleep_status = st.slider("睡眠状况（1 - 5）：", min_value=1, max_value=5, value=3)
-
-# 疲劳积蓄程度滑块
-work_load = st.slider("疲劳积蓄程度（1 - 5）：", min_value=1, max_value=5, value=3)
+sleep_status = st.slider("您的睡眠状况评分为（1 - 5）：", min_value=1, max_value=5, value=3)
 
 # 抑郁症状级别滑块
-depression_level = st.slider("抑郁症状级别（1 - 5）：", min_value=1, max_value=5, value=3)
+depression_level = st.slider("您的抑郁症状评分为（1 - 5）：", min_value=1, max_value=5, value=3)
 
 def predict():
     try:
-        # 获取用户输入，并进行数据类型检查和转换
+        # 检查模型是否加载成功
+        if model is None:
+            st.write("<div style='color: red;'>模型加载失败，无法进行预测。</div>", unsafe_allow_html=True)
+            return
+
+        # 获取用户输入并构建特征数组
         user_inputs = {
-            '年龄': int(age),
-            'A2': int(A2),
-            'A3': int(A3),
-            'A5': int(A5),
-            'B3': int(overtime_hours),
-            'B4': int(B4),
-            'B5': int(B5),
-            'smokeG': int(smoke),
-            'exerciseG3': int(exercise),
-            '工龄': int(service_years),
-            '工时分组': int(working_hours_group),
-            '生活满意度': int(life_satisfaction),
-            '抑郁症状级别': int(depression_level),
-            '睡眠状况': int(sleep_status),
-            '疲劳蓄积程度': int(work_load)
+            "CO": int(A3),
+            "FSP": int(A5),
+            "NO2": int(work_days_per_week),
+            "O3": int(overtime_hours),
+            "RSP": int(B4),
+            "SO2": int(B5)
         }
 
-        # 按照固定顺序整理特征值
         feature_values = [user_inputs[feature] for feature in model_input_features]
         features_array = np.array([feature_values])
 
+        # 使用 XGBoost 模型进行预测
         predicted_class = model.predict(features_array)[0]
         predicted_proba = model.predict_proba(features_array)[0]
 
-        # 将数字对应转换为文本及格式化概率输出
-        category_mapping = {'无职业紧张症状': 0, '轻度职业紧张症状': 1, '中度职业紧张症状': 2, '重度职业紧张症状': 3}
-        predicted_category = [k for k, v in category_mapping.items() if v == predicted_class][0]
-        probability_labels = ['无职业紧张症状', '轻度职业紧张症状', '中度职业紧张症状', '重度职业紧张症状']
-        formatted_probabilities = [f'{prob:.4f}' for prob in predicted_proba]
-        probability_output = [f"{label}: '{probability}'" for label, probability in zip(probability_labels, formatted_probabilities)]
-
         # 显示预测结果
-        st.write(f"**预测类别：** {predicted_category}")
-        st.write(f"**预测概率：** {dict(zip(probability_labels, formatted_probabilities))}")
+        st.markdown(f"<div class='prediction-result'>预测类别：{category_mapping[predicted_class]}</div>", unsafe_allow_html=True)
 
         # 根据预测结果生成建议
         probability = predicted_proba[predicted_class] * 100
-        advice = ""
-        if predicted_category == '无职业紧张症状':
-            advice = f"根据我们的模型，该员工无职业紧张症状。模型预测该员工无职业紧张症状的概率为 {probability:.2f}%。请继续保持良好的工作和生活状态。"
-        elif predicted_category == '轻度职业紧张症状':
-            advice = f"根据我们的模型，该员工有轻度职业紧张症状。模型预测该员工职业紧张程度为轻度的概率为 {probability:.2f}%。建议您适当调整工作节奏，关注自身身心健康。"
-        elif predicted_category == '中度职业紧张症状':
-            advice = f"根据我们的模型，该员工有中度职业紧张症状。模型预测该员工职业紧张程度为中度的概率为 {probability:.2f}%。建议您寻求专业帮助，如心理咨询或与上级沟通调整工作。"
-        elif predicted_category == '重度职业紧张症状':
-            advice = f"根据我们的模型，该员工有重度职业紧张症状。模型预测该员工职业紧张程度为重度的概率为 {probability:.2f}%。强烈建议您立即采取行动，如休假、寻求医疗支持或与管理层协商改善工作环境。"
-        else:
-            advice = "预测结果出现未知情况。"
-        st.write(advice)
-    
-        # 创建SHAP解释器
+        advice = {
+                    '严重污染': f"根据我们的库，该日空气质量为严重污染。模型预测该日为严重污染的概率为 {probability:.1f}%。建议采取防护措施，减少户外活动。",
+                    '重度污染': f"根据我们的库，该日空气质量为重度污染。模型预测该日为重度污染的概率为 {probability:.1f}%。建议减少外出，佩戴防护口罩。",
+                    '中度污染': f"根据我们的库，该日空气质量为中度污染。模型预测该日为中度污染的概率为 {probability:.1f}%。敏感人群应减少户外活动。",
+                    '轻度污染': f"根据我们的库，该日空气质量为轻度污染。模型预测该日为轻度污染的概率为 {probability:.1f}%。可以适当进行户外活动，但仍需注意防护。",
+                    '良': f"根据我们的库，此日空气质量为良。模型预测此日空气质量为良的概率为 {probability:.1f}%。可以正常进行户外活动。",
+                    '优': f"根据我们的库，该日空气质量为优。模型预测该日空气质量为优的概率为 {probability:.1f}%。空气质量良好，尽情享受户外时光。",
+        }[category_mapping[predicted_class]]
+        st.markdown(f"<div class='advice-text'>{advice}</div>", unsafe_allow_html=True)
+
+        # 计算 SHAP 值
         explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(features_array)
 
-        # 计算SHAP值并创建解释对象
-        shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=model_input_features))
-        shap_explanation = shap.Explanation(values=shap_values[0], base_values=explainer.expected_value, data=pd.DataFrame([feature_values], columns=model_input_features))
+        # 计算每个类别的特征贡献度
+        importance_df = pd.DataFrame()
+        for i in range(shap_values.shape[2]):  # 对每个类别进行计算
+            importance = np.abs(shap_values[:, :, i]).mean(axis=0)
+            importance_df[f'Class_{i}'] = importance
 
-        # 绘制瀑布图，设置较大的 max_display 值
-        shap.plots.waterfall(shap_explanation[0], max_display=len(user_inputs))
-        plt.title('SHAP 值瀑布图')
-        st.pyplot(plt.gcf())
+        importance_df.index = model_input_features
+
+        # 类别映射
+        type_mapping = {
+             5: '严重污染',
+             4: '重度污染',
+             3: '重度污染',
+             2: '轻度污染',
+             1: '良',
+             0: '优'
+        }
+        importance_df.columns = [type_mapping[i] for i in range(importance_df.shape[1])]
+
+        # 获取指定类别的 SHAP 值贡献度
+        predicted_class_name = category_mapping[predicted_class]  # 根据预测类别获取类别名称
+        importances = importance_df[predicted_class_name]  # 提取 importance_df 中对应的类别列
+
+        # 准备绘制瀑布图的数据
+        feature_name_mapping = {
+            "CO": "一氧化碳浓度",
+            "FSP": "PM2.5浓度",
+            "NO2": "二氧化氮浓度",
+            "O3": "臭氧浓度",
+            "RSP": "PM10浓度",
+            "SO2": "二氧化硫浓度"
+        }
+        features = [feature_name_mapping[f] for f in importances.index.tolist()]  # 获取特征名称
+        contributions = importances.values  # 获取特征贡献度
+
+        # 确保瀑布图的数据是按贡献度绝对值降序排列的
+        sorted_indices = np.argsort(np.abs(contributions))[::-1]
+        features_sorted = [features[i] for i in sorted_indices]
+        contributions_sorted = contributions[sorted_indices]
+
+        # 初始化绘图
+        fig, ax = plt.subplots(figsize=(14, 8))
+
+        # 初始化累积值
+        start = 0
+        prev_contributions = [start]  # 起始值为0
+
+        # 计算每一步的累积值
+        for i in range(1, len(contributions_sorted)):
+            prev_contributions.append(prev_contributions[-1] + contributions_sorted[i - 1])
+
+        # 绘制瀑布图
+        for i in range(len(contributions_sorted)):
+            color = '#ff5050' if contributions_sorted[i] < 0 else '#66b3ff'  # 负贡献使用红色，正贡献使用蓝色
+            if i == len(contributions_sorted) - 1:
+                # 最后一个条形带箭头效果，表示最终累积值
+                ax.barh(features_sorted[i], contributions_sorted[i], left=prev_contributions[i], color=color, edgecolor='black', height=0.5, hatch='/')
+            else:
+                ax.barh(features_sorted[i], contributions_sorted[i], left=prev_contributions[i], color=color, edgecolor='black', height=0.5)
+
+            # 在每个条形上显示数值
+            plt.text(prev_contributions[i] + contributions_sorted[i] / 2, i, f"{contributions_sorted[i]:.2f}", 
+                    ha='center', va='center', fontsize=10, fontproperties=font_prop, color='black')
+
+        # 设置图表属性
+        plt.title(f'{predicted_class_name} 的特征贡献度瀑布图', fontsize=18, fontproperties=font_prop)
+        plt.xlabel('贡献度 (SHAP 值)', fontsize=14, fontproperties=font_prop)
+        plt.ylabel('特征', fontsize=14, fontproperties=font_prop)
+        plt.yticks(fontsize=12, fontproperties=font_prop)
+        plt.xticks(fontsize=12, fontproperties=font_prop)
+        plt.grid(axis='x', linestyle='--', alpha=0.7)
+
+        # 增加边距避免裁剪
+        plt.xlim(left=0, right=max(prev_contributions) + max(contributions_sorted) * 1.0)
+        fig.subplots_adjust(left=0.15, right=0.95, top=0.9, bottom=0.15)
+
+        plt.tight_layout()
+
+        # 保存并在 Streamlit 中展示
+        plt.savefig("shap_waterfall_plot.png", bbox_inches='tight', dpi=1200)
+        st.image("shap_waterfall_plot.png")
+
     except Exception as e:
-        st.write(f"Error in prediction: {e}")
+        st.write(f"<div style='color: red;'>Error in prediction: {e}</div>", unsafe_allow_html=True)
 
-if st.button("预测"):
+if st.button("预测", key="predict_button"):
     predict()
+
+# 页脚
+st.markdown('<div class="footer">© 2024 All rights reserved.</div>', unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
