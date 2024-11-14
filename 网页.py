@@ -9,14 +9,6 @@ from matplotlib.font_manager import FontProperties
 from xgboost import XGBClassifier
 import xgboost as xgb
 
-# 设置中文字体
-font_path = "SimHei.ttf"
-font_prop = FontProperties(fname=font_path)
-
-# 确保 matplotlib 使用指定的字体
-plt.rcParams['font.sans-serif'] = [font_prop.get_name()]
-plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-
 # 添加红色主题的 CSS 样式，并添加新的类用于红色框框
 st.markdown("""
     <style>
