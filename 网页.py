@@ -12,43 +12,43 @@ import xgboost as xgb
 # 添加红色主题的 CSS 样式，并添加新的类用于红色框框
 st.markdown("""
     <style>
-  .main {
+.main {
         background-color: #990000;  /* 红色主题背景色 */
         color: #ffffff;
         font-family: 'Arial', sans-serif;
     }
-  .title {
+.title {
         font-size: 48px;
         color: #660000;
         font-weight: bold;
         text-align: center;
         margin-bottom: 30px;
     }
-  .subheader {
+.subheader {
         font-size: 28px;
         color: #FFD700;  /* 金色副标题文字颜色 */
         margin-bottom: 25px;
         text-align: center;
-        border-bottom: 2px solid #DDA0DD;
+        border-bottom: 2px solid #FF6666;  /* 改为浅红色边框 */
         padding-bottom: 10px;
         margin-top: 20px;
     }
-  .input-label {
+.input-label {
         font-size: 18px;
         font-weight: bold;
-        color: #DDA0DD;
+        color: #FF6666;  /* 改为浅红色文字颜色 */
         margin-bottom: 10px;
     }
-  .footer {
+.footer {
         text-align: center;
         margin-top: 50px;
         font-size: 16px;
-        color: #D8BFD8;
+        color: #FFCCCC;  /* 改为浅红色文字颜色 */
         background-color: #660000;  /* 页脚背景色 */
         padding: 20px;
-        border-top: 1px solid #6A5ACD;
+        border-top: 1px solid #FF6666;  /* 改为浅红色边框 */
     }
-  .button {
+.button {
         background-color: #CC0000;  /* 按钮红色背景 */
         border: none;
         color: white;
@@ -63,47 +63,45 @@ st.markdown("""
         box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.5);
         transition: background-color 0.3s, box-shadow 0.3s;
     }
-  .button:hover {
+.button:hover {
         background-color: #990000;  /* 按钮悬停颜色 */
         box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.7);
     }
-  .stSelectbox,.stNumberInput,.stSlider {
+.stSelectbox,.stNumberInput,.stSlider {
         margin-bottom: 20px;
     }
-  .stSlider > div {
+.stSlider > div {
         padding: 10px;
-        background: #E6E6FA;
+        background: #FFCCCC;  /* 改为浅红色背景 */
         border-radius: 10px;
     }
-  .prediction-result {
+.prediction-result {
         font-size: 24px;
         color: #ffffff;
         margin-top: 30px;
         padding: 20px;
         border-radius: 10px;
-        background: #6A5ACD;
+        background: #FF6666;  /* 改为浅红色背景 */
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
     }
-  .advice-text {
+.advice-text {
         font-size: 20px;
         line-height: 1.6;
         color: #ffffff;
-        background: #8A2BE2;
+        background: #FF6666;  /* 改为浅红色背景 */
         padding: 20px;
         border-radius: 10px;
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
         margin-top: 15px;
     }
     /* 新添加的类用于红色框框 */
-  .recommendation-box {
-        border: 2px solid #FF0000;  /* 红色边框 */
+.recommendation-box {
+        border: 2px solid #FFCCCC;  /* 改为实色浅红色边框 */
         padding: 10px;
         border-radius: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
-
-st.markdown("<div class='main'>", unsafe_allow_html=True)
 
 # 页面标题
 st.markdown('<div class="title">国潮新茶饮推荐茶饮预测</div>', unsafe_allow_html=True)
