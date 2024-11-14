@@ -72,7 +72,7 @@ st.markdown("""
     }
 .stSlider > div {
         padding: 10px;
-        background: #FFCCCC;  /* 改为浅红色背景 */
+        background: #FED4D2;  /* 改为浅红色背景 */
         border-radius: 10px;
     }
 .prediction-result {
